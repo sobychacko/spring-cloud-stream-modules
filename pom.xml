@@ -50,6 +50,7 @@
 		<module>jdbc-sink</module>
 		<module>log-sink</module>
 		<module>redis-sink</module>
+        <module>mongodb-sink</module>
 		<module>throughput-sink</module>
 		<module>websocket-sink</module>
 	</modules>
