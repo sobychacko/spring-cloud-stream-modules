@@ -50,30 +50,27 @@ import static org.junit.Assert.*;
 import static scala.collection.JavaConversions.asScalaBuffer;
 
 /**
- * Tests for basic {@link KafkaSource}.
+ * Tests for {@link KafkaSource} with selected partitions.
  *
  * @author Soby Chacko
  */
 @RunWith(SpringJUnit4ClassRunner.class)
-@IntegrationTest({"topics = foo,bar"})
+@IntegrationTest({"partitions.foobar=0,1,2"})
 @SpringApplicationConfiguration(classes = {KafkaSourceIntegrationTests.ContextConfiguration.class, KafkaSourceApplication.class},
 		initializers = PropertiesInitializer.class)
 @DirtiesContext
-public class KafkaSourceIntegrationTests {
+public class KafkaConfigurdPartitionsIntegrationTest {
 
 	private static String scs_kafka_test_embedded;
 
 	private static final Map<String, Integer> TEST_TOPICS_WITH_PARTITIONS = new HashMap<>();
 
-	private static final String TEST_TOPIC1 = "foo";
-	private static final String TEST_TOPIC2 = "bar";
+	private static final String TEST_TOPIC = "foobar";
 
 	static {
 		scs_kafka_test_embedded = System.getProperty("SCS_KAFKA_TEST_EMBEDDED");
 		System.setProperty("SCS_KAFKA_TEST_EMBEDDED", "true");
-
-		TEST_TOPICS_WITH_PARTITIONS.put(TEST_TOPIC1, 1);
-		TEST_TOPICS_WITH_PARTITIONS.put(TEST_TOPIC2, 4);
+		TEST_TOPICS_WITH_PARTITIONS.put(TEST_TOPIC, 4);
 	}
 
 	@ClassRule
@@ -105,46 +102,32 @@ public class KafkaSourceIntegrationTests {
 		}
 	}
 
-
 	@Test
-	public void testBasicSourceWithTopicWithSinglePartition() throws Exception {
+	public void testTopicWithOnlyConfiguredPartitions() throws Exception {
 
-		for (int i = 0; i < 10; i++) {
-			producer.send(new ProducerRecord<>(TEST_TOPIC1,
-					"test-topic" + i,
-					Integer.toString(i)));
-		}
-
-		for (int i = 0; i < 10; i++) {
-			Message<?> out = this.messageCollector.forChannel(this.source.output()).poll(10, TimeUnit.SECONDS);
-			assertNotNull(out);
-			String payload = new String(((byte[]) out.getPayload()), "UTF-8");
-			assertEquals(Integer.toString(i), payload);
-			assertEquals(TEST_TOPIC1, out.getHeaders().get(KafkaHeaders.TOPIC));
-		}
-	}
-
-	@Test
-	public void testTopicWithAllAvailablePartitions() throws Exception {
-
-		for (int i = 0; i < 10; i++) {
-			producer.send(new ProducerRecord<>(TEST_TOPIC2, i % 4,
+		for (int i = 0; i < 12; i++) {
+			producer.send(new ProducerRecord<>(TEST_TOPIC, i % 4,
 					"test-topic" + i,
 					Integer.toString(i)));
 		}
 
 		List<String> strings = new ArrayList<>();
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < 9; i++) {
 			Message<?> out = this.messageCollector.forChannel(this.source.output()).poll(10, TimeUnit.SECONDS);
 			assertNotNull(out);
 			String payload = new String(((byte[]) out.getPayload()), "UTF-8");
 			strings.add(payload);
-			assertEquals(TEST_TOPIC2, out.getHeaders().get(KafkaHeaders.TOPIC));
+			assertEquals(TEST_TOPIC, out.getHeaders().get(KafkaHeaders.TOPIC));
 		}
 
 		//Verify that we read from all the partitions and all messages are accounted for
-		for (int i = 0; i < 10; i++) {
+		Integer[] in = new Integer[]{0,1,2,4,5,6,8,9,10};
+		for (int i : in) {
 			assertTrue(strings.contains(Integer.toString(i)));
+		}
+		Integer[] out = new Integer[]{3,7,11};
+		for (int i : out) {
+			assertFalse(strings.contains(Integer.toString(i)));
 		}
 	}
 
@@ -171,7 +154,7 @@ public class KafkaSourceIntegrationTests {
 
 				@Override
 				public void afterPropertiesSet() throws Exception {
-Thread.sleep(10000);
+
 					for (Map.Entry<String, Integer> topicWithParts : TEST_TOPICS_WITH_PARTITIONS.entrySet()) {
 						TopicUtils.ensureTopicCreated(kafkaTestSupport.getZkConnectString(), topicWithParts.getKey(),
 								topicWithParts.getValue(), 1);
