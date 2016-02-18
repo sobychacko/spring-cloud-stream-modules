@@ -17,12 +17,16 @@
 		<start-class>org.springframework.cloud.stream.module.time.TimeSourceApplication</start-class>
 	</properties>
 
-
-
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.cloud.stream.module</groupId>
 			<artifactId>spring-cloud-stream-modules-common-configuration</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.cloud</groupId>
+					<artifactId>spring-cloud-stream-binder-redis</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 </project>
